@@ -132,7 +132,11 @@ func main() {
 	}
 
 	s := p.GenerateSecret()
-	p.HydrateSecret(&s)
+	err = p.HydrateSecret(&s)
+
+	if err != nil {
+		panic(err)
+	}
 
 	b, err := yaml.Marshal(s)
 
