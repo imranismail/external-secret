@@ -79,7 +79,12 @@ func (p *Plugin) GenerateSecret() corev1.Secret {
 }
 
 func (p *Plugin) HydrateSecret(s *corev1.Secret) error {
-	sess := session.New()
+	sess, err := session.NewSession()
+
+	if err != nil {
+		panic(err)
+	}
+
 	svc := secretsmanager.New(sess)
 
 	for k, v := range p.Data {
