@@ -1,16 +1,20 @@
 ## TLDR
 
-Given that you have this deployment manifest
+A kustomize exec plugin to generate secret from remote stores. Currently supports AWS SecretsManager
+
+Given that you have this kustomization:
+
+**kustomization.yaml**
 
 ```yaml
-# ~/deployments/app/kustomization.yaml
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 generators:
-- generator.yaml
+- secret.yaml
+```
 
-
-# ~/deployments/app/generator.yaml
+**secret.yaml**
+```yaml
 apiVersion: imranismail.dev/v1
 kind: ExternalSecret
 # generator options
@@ -19,6 +23,10 @@ disableNameSuffixHash: false
 type: Opaque
 metadata:
   name: my-secret
+  annotations:
+    whatever: "whatever"
+  labels:
+    whatever: "whatever"
 spec:
   # set aws config to be used to fetch each data
   secretManagerConfig:
@@ -49,6 +57,27 @@ spec:
         # omit key to take the whole secret as a file
         # key: "db-password"
 ```
+
+It outputs this:
+
+```yaml
+apiVersion: imranismail.dev/v1
+kind: Secret
+metadata:
+  name: my-secret
+  annotations:
+    whatever: "whatever"
+  labels:
+    whatever: "whatever"
+type: Opaque
+data:
+  # key and base64 encoded values from remote datastores
+  {{key}}: {{val}}
+```
+
+## Override Logic
+
+Currently `data` always overrides `dataFrom`. This works similar to Kubernetes Container V1 API for the [`env`](https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.16/#envvarsource-v1-core) and [`envFrom`](ps://kubernetes.io/docs/reference/generated/kubernetes-api/v1.16/#envfromsource-v1-core) field.
 
 ## AWS Credentials
 
