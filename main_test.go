@@ -24,14 +24,14 @@ type: Opaque
 metadata:
   name: my-secret
 spec:
-	secretManagerConfig:
-		region: "ap-southeast-1"
+  secretManagerConfig:
+    region: "ap-southeast-1"
   dataFrom:
   - secretManagerRef:
       name: "myapp/production"
-	- secretManagerRef:
-			name: "myapp/production"
-			region: "ap-northeast-1"
+  - secretManagerRef:
+      name: "myapp/production"
+      region: "ap-northeast-1"
   data:
   - key: "DB_HOSTNAME"
     value: "some-custom-hostname"
@@ -39,8 +39,8 @@ spec:
     valueFrom:
       secretManagerKeyRef:
         name: "myapp/production"
-				key: "db-password"
-				region: "ap-northeast-1"
+        key: "db-password"
+        region: "ap-northeast-1"
 `)
 
 	th.AssertActualEqualsExpected(m, `
