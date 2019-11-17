@@ -60,7 +60,6 @@ type Plugin struct {
 	Behavior              string            `json:"behavior,omitempty" yaml:"behavior,omitempty"`
 	DisableNameSuffixHash bool              `json:"disableNameSuffixHash,omitempty" yaml:"disableNameSuffixHash,omitempty"`
 	Spec                  Spec              `json:"spec,omitempty" yaml:"spec,omitempty"`
-	secret                corev1.Secret
 	cache                 map[string]string
 }
 
@@ -91,30 +90,6 @@ func NewPlugin() Plugin {
 	p.Behavior = "create"
 	p.Type = "Opaque"
 	p.cache = make(map[string]string)
-
-	p.secret = corev1.Secret{}
-	p.secret.SetGroupVersionKind(schema.FromAPIVersionAndKind("v1", "Secret"))
-	p.secret.SetName(p.GetName())
-	p.secret.SetNamespace(p.GetNamespace())
-	p.secret.SetLabels(p.GetLabels())
-	p.secret.Type = p.Type
-	p.secret.Data = make(map[string][]byte)
-
-	a := make(map[string]string)
-	d := map[string]string{
-		"kustomize.config.k8s.io/needs-hash": strconv.FormatBool(!p.DisableNameSuffixHash),
-		"kustomize.config.k8s.io/behavior":   p.Behavior,
-	}
-
-	for k, v := range p.GetAnnotations() {
-		a[k] = v
-	}
-
-	for k, v := range d {
-		a[k] = v
-	}
-
-	p.secret.SetAnnotations(a)
 
 	return p
 }
@@ -155,58 +130,82 @@ func (p *Plugin) Validate() error {
 	return nil
 }
 
-func (p *Plugin) LoadSecret() error {
+func (p *Plugin) GenerateSecret() (*corev1.Secret, error) {
+	s := corev1.Secret{}
+	s.SetGroupVersionKind(schema.FromAPIVersionAndKind("v1", "Secret"))
+	s.SetName(p.GetName())
+	s.SetNamespace(p.GetNamespace())
+	s.SetLabels(p.GetLabels())
+	s.Type = p.Type
+	s.Data = make(map[string][]byte)
+
+	a := make(map[string]string)
+	d := map[string]string{
+		"kustomize.config.k8s.io/needs-hash": strconv.FormatBool(!p.DisableNameSuffixHash),
+		"kustomize.config.k8s.io/behavior":   p.Behavior,
+	}
+
+	for k, v := range p.GetAnnotations() {
+		a[k] = v
+	}
+
+	for k, v := range d {
+		a[k] = v
+	}
+
+	s.SetAnnotations(a)
+
 	for _, d := range p.Spec.DataFrom {
 		r, err := p.GetSecretManagerSecret(d.SecretManagerRef)
 
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		kv := make(map[string]string)
 		err = json.Unmarshal([]byte(r), &kv)
 
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		for k, v := range kv {
-			p.secret.Data[k] = []byte(v)
+			s.Data[k] = []byte(v)
 		}
 	}
 
 	for _, d := range p.Spec.Data {
 		if d.Value != nil {
-			p.secret.Data[*d.Key] = []byte(*d.Value)
+			s.Data[*d.Key] = []byte(*d.Value)
 		}
 
 		if d.ValueFrom != nil {
 			r, err := p.GetSecretManagerSecret(d.ValueFrom.SecretManagerKeyRef)
 
 			if err != nil {
-				return err
+				return nil, err
 			}
 
 			if d.ValueFrom.SecretManagerKeyRef.Key == nil {
-				p.secret.Data[*d.Key] = []byte(r)
+				s.Data[*d.Key] = []byte(r)
 			} else {
 				kv := make(map[string]string)
 				err = json.Unmarshal([]byte(r), &kv)
 
 				if err != nil {
-					return err
+					return nil, err
 				}
 
 				if v, ok := kv[*d.ValueFrom.SecretManagerKeyRef.Key]; ok {
-					p.secret.Data[*d.Key] = []byte(v)
+					s.Data[*d.Key] = []byte(v)
 				} else {
-					return fmt.Errorf("Missing key %v in secret %v", *d.ValueFrom.SecretManagerKeyRef.Key, *d.ValueFrom.GetName())
+					return nil, fmt.Errorf("Missing key %v in secret %v", *d.ValueFrom.SecretManagerKeyRef.Key, *d.ValueFrom.GetName())
 				}
 			}
 		}
 	}
 
-	return nil
+	return &s, nil
 }
 
 func (p *Plugin) GetSecretManagerSvc(r *string) (*secretsmanager.SecretsManager, error) {
@@ -312,13 +311,13 @@ func main() {
 		log.Fatal(err)
 	}
 
-	err = p.LoadSecret()
+	s, err := p.GenerateSecret()
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	b, err := yaml.Marshal(p.secret)
+	b, err := yaml.Marshal(s)
 
 	if err != nil {
 		log.Fatal(err)
