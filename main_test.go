@@ -39,7 +39,7 @@ spec:
     valueFrom:
       secretManagerKeyRef:
         name: "myapp/production"
-				prop: "db-password"
+				key: "db-password"
 				region: "ap-northeast-1"
 `)
 
