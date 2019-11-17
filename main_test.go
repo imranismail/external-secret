@@ -23,20 +23,33 @@ kind: ExternalSecret
 type: Opaque
 metadata:
   name: my-secret
-data:
-  hello:
-    name: "external-secret-test"
-    key: "hello"
+spec:
+	secretManagerConfig:
+		region: "ap-southeast-1"
+  dataFrom:
+  - secretManagerRef:
+      name: "myapp/production"
+	- secretManagerRef:
+			name: "myapp/production"
+			region: "ap-northeast-1"
+  data:
+  - key: "DB_HOSTNAME"
+    value: "some-custom-hostname"
+  - key: "DB_PASSWORD"
+    valueFrom:
+      secretManagerKeyRef:
+        name: "myapp/production"
+				prop: "db-password"
+				region: "ap-northeast-1"
 `)
 
 	th.AssertActualEqualsExpected(m, `
 apiVersion: v1
 data:
-  hello: d29ybGQ=
 kind: Secret
 metadata:
-  creationTimestamp: null
-  name: my-secret
+	creationTimestamp: null
+	name: my-secret
 type: Opaque
 `)
 }
