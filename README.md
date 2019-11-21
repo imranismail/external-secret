@@ -29,30 +29,30 @@ metadata:
     whatever: "whatever"
 spec:
   # set aws config to be used to fetch each data
-  secretManagerConfig:
+  secretsManagerConfig:
     region: "ap-southeast-1"
   dataFrom:
-  - secretManagerRef:
+  - secretsManagerRef:
       name: "myapp/production"
-  - secretManagerRef:
+  - secretsManagerRef:
       name: "myapp/production"
-      # override .secretManagerConfig.region
+      # override .secretsManagerConfig.region
       region: "ap-northeast-1"
   data:
   - key: "DB_HOSTNAME"
     value: "some-custom-hostname"
   - key: "DB_PASSWORD"
     valueFrom:
-      secretManagerKeyRef:
+      secretsManagerKeyRef:
         name: "myapp/production"
         # look up key in secret
         key: "db-password"
-        # override .secretManagerConfig.region
+        # override .secretsManagerConfig.region
         region: "ap-northeast-1"
   # take the whole secret as a file
   - key: "secret.json"
     valueFrom:
-      secretManagerKeyRef:
+      secretsManagerKeyRef:
         name: "myapp/production"
         # omit key to take the whole secret as a file
         # key: "db-password"

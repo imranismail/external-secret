@@ -24,12 +24,12 @@ type: Opaque
 metadata:
   name: my-secret
 spec:
-  secretManagerConfig:
+  secretsManagerConfig:
     region: "ap-southeast-1"
   dataFrom:
-  - secretManagerRef:
+  - secretsManagerRef:
       name: "myapp/production"
-  - secretManagerRef:
+  - secretsManagerRef:
       name: "myapp/production"
       region: "ap-northeast-1"
   data:
@@ -37,7 +37,7 @@ spec:
     value: "some-custom-hostname"
   - key: "DB_PASSWORD"
     valueFrom:
-      secretManagerKeyRef:
+      secretsManagerKeyRef:
         name: "myapp/production"
         key: "db-password"
         region: "ap-northeast-1"

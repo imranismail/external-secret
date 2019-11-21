@@ -19,12 +19,12 @@ import (
 )
 
 type Spec struct {
-	SecretManagerConfig `json:"secretManagerConfig,omitempty" yaml:"secretManagerConfig,omitempty"`
-	Data                []Secret           `json:"data,omitempty" yaml:"data,omitempty"`
-	DataFrom            []SecretFromSource `json:"dataFrom,omitempty" yaml:"dataFrom,omitempty"`
+	SecretsManagerConfig `json:"secretsManagerConfig,omitempty" yaml:"secretsManagerConfig,omitempty"`
+	Data                 []Secret           `json:"data,omitempty" yaml:"data,omitempty"`
+	DataFrom             []SecretFromSource `json:"dataFrom,omitempty" yaml:"dataFrom,omitempty"`
 }
 
-type SecretManagerConfig struct {
+type SecretsManagerConfig struct {
 	Region *string `json:"region,omitempty" yaml:"region,omitempty"`
 }
 
@@ -35,20 +35,20 @@ type Secret struct {
 }
 
 type SecretFromSource struct {
-	SecretManagerRef `json:"secretManagerRef,omitempty" yaml:"secretManagerRef,omitempty"`
+	SecretsManagerRef `json:"secretsManagerRef,omitempty" yaml:"secretsManagerRef,omitempty"`
 }
 
 type SecretSource struct {
-	SecretManagerKeyRef `json:"secretManagerKeyRef,omitempty" yaml:"secretManagerKeyRef,omitempty"`
+	SecretsManagerKeyRef `json:"secretsManagerKeyRef,omitempty" yaml:"secretsManagerKeyRef,omitempty"`
 }
 
-type SecretManagerKeyRef struct {
+type SecretsManagerKeyRef struct {
 	Name   *string `json:"name,omitempty" yaml:"name,omitempty"`
 	Key    *string `json:"key,omitempty" yaml:"key,omitempty"`
 	Region *string `json:"region,omitempty" yaml:"region,omitempty"`
 }
 
-type SecretManagerRef struct {
+type SecretsManagerRef struct {
 	Name   *string `json:"name,omitempty" yaml:"name,omitempty"`
 	Region *string `json:"region,omitempty" yaml:"region,omitempty"`
 }
@@ -68,19 +68,19 @@ type AWSSecretRef interface {
 	GetRegion() *string
 }
 
-func (s SecretManagerKeyRef) GetName() *string {
+func (s SecretsManagerKeyRef) GetName() *string {
 	return s.Name
 }
 
-func (s SecretManagerKeyRef) GetRegion() *string {
+func (s SecretsManagerKeyRef) GetRegion() *string {
 	return s.Region
 }
 
-func (s SecretManagerRef) GetName() *string {
+func (s SecretsManagerRef) GetName() *string {
 	return s.Name
 }
 
-func (s SecretManagerRef) GetRegion() *string {
+func (s SecretsManagerRef) GetRegion() *string {
 	return s.Region
 }
 
@@ -156,7 +156,7 @@ func (p *Plugin) GenerateSecret() (*corev1.Secret, error) {
 	s.SetAnnotations(a)
 
 	for _, d := range p.Spec.DataFrom {
-		r, err := p.GetSecretManagerSecret(d.SecretManagerRef)
+		r, err := p.GetSecretsManagerSecret(d.SecretsManagerRef)
 
 		if err != nil {
 			return nil, err
@@ -180,13 +180,13 @@ func (p *Plugin) GenerateSecret() (*corev1.Secret, error) {
 		}
 
 		if d.ValueFrom != nil {
-			r, err := p.GetSecretManagerSecret(d.ValueFrom.SecretManagerKeyRef)
+			r, err := p.GetSecretsManagerSecret(d.ValueFrom.SecretsManagerKeyRef)
 
 			if err != nil {
 				return nil, err
 			}
 
-			if d.ValueFrom.SecretManagerKeyRef.Key == nil {
+			if d.ValueFrom.SecretsManagerKeyRef.Key == nil {
 				s.Data[*d.Key] = []byte(r)
 			} else {
 				kv := make(map[string]string)
@@ -196,10 +196,10 @@ func (p *Plugin) GenerateSecret() (*corev1.Secret, error) {
 					return nil, err
 				}
 
-				if v, ok := kv[*d.ValueFrom.SecretManagerKeyRef.Key]; ok {
+				if v, ok := kv[*d.ValueFrom.SecretsManagerKeyRef.Key]; ok {
 					s.Data[*d.Key] = []byte(v)
 				} else {
-					return nil, fmt.Errorf("Missing key %v in secret %v", *d.ValueFrom.SecretManagerKeyRef.Key, *d.ValueFrom.GetName())
+					return nil, fmt.Errorf("Missing key %v in secret %v", *d.ValueFrom.SecretsManagerKeyRef.Key, *d.ValueFrom.GetName())
 				}
 			}
 		}
@@ -208,7 +208,7 @@ func (p *Plugin) GenerateSecret() (*corev1.Secret, error) {
 	return &s, nil
 }
 
-func (p *Plugin) GetSecretManagerSvc(r *string) (*secretsmanager.SecretsManager, error) {
+func (p *Plugin) GetSecretsManagerSvc(r *string) (*secretsmanager.SecretsManager, error) {
 	sess, err := session.NewSession(
 		&aws.Config{
 			Region: r,
@@ -224,12 +224,12 @@ func (p *Plugin) GetSecretManagerSvc(r *string) (*secretsmanager.SecretsManager,
 	return svc, nil
 }
 
-func (p *Plugin) GetSecretManagerSecret(s AWSSecretRef) (string, error) {
+func (p *Plugin) GetSecretsManagerSecret(s AWSSecretRef) (string, error) {
 	n := s.GetName()
 	r := s.GetRegion()
 
 	if r == nil {
-		r = p.Spec.SecretManagerConfig.Region
+		r = p.Spec.SecretsManagerConfig.Region
 	}
 
 	ck := *n
@@ -242,7 +242,7 @@ func (p *Plugin) GetSecretManagerSecret(s AWSSecretRef) (string, error) {
 		return val, nil
 	}
 
-	svc, err := p.GetSecretManagerSvc(r)
+	svc, err := p.GetSecretsManagerSvc(r)
 
 	if err != nil {
 		return "", err
@@ -281,7 +281,7 @@ func (s *SecretSource) Validate() error {
 		cv := v.Field(i)
 
 		if i > 0 && !cv.IsNil() {
-			return fmt.Errorf("you may only specify one of `secretManagerKeyRef` or `runtimeConfiguratorKeyRef`")
+			return fmt.Errorf("you may only specify one of `secretsManagerKeyRef` or `runtimeConfiguratorKeyRef`")
 		}
 	}
 
@@ -296,7 +296,7 @@ func (s *SecretFromSource) Validate() error {
 		cv := v.Field(i)
 
 		if i > 0 && !cv.IsNil() {
-			return fmt.Errorf("you may only specify one of `secretManagerRef` or `runtimeConfiguratorRef`")
+			return fmt.Errorf("you may only specify one of `secretsManagerRef` or `runtimeConfiguratorRef`")
 		}
 	}
 
