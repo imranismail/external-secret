@@ -37,7 +37,7 @@ spec:
     value: "some-custom-hostname"
   - key: "DB_PASSWORD"
     valueFrom:
-      secretsManagerKeyRef:
+      secretsManagerRef:
         name: "myapp/production"
         key: "db-password"
         region: "ap-northeast-1"
