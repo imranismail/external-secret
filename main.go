@@ -236,16 +236,16 @@ func (p *Plugin) GetSecretsManagerSecret(s SecretsManagerRef) ([]byte, error) {
 		return nil, fmt.Errorf("invalid secret: no string or binary found, make sure the content of secret `%v` is not empty", n)
 	}
 
-	if res.SecretBinary != nil {
-		p.cache[ck] = res.SecretBinary
-	}
-
 	return p.cache[ck], nil
 }
 
 func (s *Secret) Validate() error {
 	if s.Value != nil && s.ValueFrom != nil {
 		return fmt.Errorf("only one of `value` or `valueFrom` is permitted")
+	}
+
+	if s.Value == nil && s.ValueFrom == nil {
+		return fmt.Errorf("one of `value` or `valueFrom` is required")
 	}
 
 	if s.ValueFrom != nil {
