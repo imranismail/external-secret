@@ -20,8 +20,8 @@ import (
 
 type Spec struct {
 	SecretsManagerConfig `json:"secretsManagerConfig,omitempty" yaml:"secretsManagerConfig,omitempty"`
-	Data                 []Secret           `json:"data,omitempty" yaml:"data,omitempty"`
-	DataFrom             []SecretFromSource `json:"dataFrom,omitempty" yaml:"dataFrom,omitempty"`
+	Data                 []Secret       `json:"data,omitempty" yaml:"data,omitempty"`
+	DataFrom             []SecretSource `json:"dataFrom,omitempty" yaml:"dataFrom,omitempty"`
 }
 
 type SecretsManagerConfig struct {
@@ -34,22 +34,13 @@ type Secret struct {
 	ValueFrom *SecretSource `json:"valueFrom,omitempty" yaml:"valueFrom,omitempty"`
 }
 
-type SecretFromSource struct {
-	SecretsManagerRef `json:"secretsManagerRef,omitempty" yaml:"secretsManagerRef,omitempty"`
-}
-
 type SecretSource struct {
-	SecretsManagerKeyRef `json:"secretsManagerKeyRef,omitempty" yaml:"secretsManagerKeyRef,omitempty"`
-}
-
-type SecretsManagerKeyRef struct {
-	Name   *string `json:"name,omitempty" yaml:"name,omitempty"`
-	Key    *string `json:"key,omitempty" yaml:"key,omitempty"`
-	Region *string `json:"region,omitempty" yaml:"region,omitempty"`
+	SecretsManagerRef `json:"secretsManagerRef,omitempty" yaml:"secretsManagerRef,omitempty"`
 }
 
 type SecretsManagerRef struct {
 	Name   *string `json:"name,omitempty" yaml:"name,omitempty"`
+	Key    *string `json:"key,omitempty" yaml:"key,omitempty"`
 	Region *string `json:"region,omitempty" yaml:"region,omitempty"`
 }
 
@@ -60,28 +51,7 @@ type Plugin struct {
 	Behavior              string            `json:"behavior,omitempty" yaml:"behavior,omitempty"`
 	DisableNameSuffixHash bool              `json:"disableNameSuffixHash,omitempty" yaml:"disableNameSuffixHash,omitempty"`
 	Spec                  Spec              `json:"spec,omitempty" yaml:"spec,omitempty"`
-	cache                 map[string]string
-}
-
-type AWSSecretRef interface {
-	GetName() *string
-	GetRegion() *string
-}
-
-func (s SecretsManagerKeyRef) GetName() *string {
-	return s.Name
-}
-
-func (s SecretsManagerKeyRef) GetRegion() *string {
-	return s.Region
-}
-
-func (s SecretsManagerRef) GetName() *string {
-	return s.Name
-}
-
-func (s SecretsManagerRef) GetRegion() *string {
-	return s.Region
+	cache                 map[string][]byte
 }
 
 func NewPlugin() Plugin {
@@ -89,7 +59,7 @@ func NewPlugin() Plugin {
 	p.DisableNameSuffixHash = false
 	p.Behavior = "create"
 	p.Type = "Opaque"
-	p.cache = make(map[string]string)
+	p.cache = make(map[string][]byte)
 
 	return p
 }
@@ -116,6 +86,10 @@ func (p *Plugin) Validate() error {
 
 		if err != nil {
 			return fmt.Errorf("invalid input at .spec.dataFrom[%v]: %s", i, err)
+		}
+
+		if d.Key != nil {
+			return fmt.Errorf("invalid input at .spec.dataFrom[%v]: `key` is not a valid option here as the content of the secret will be spreaded as key:val", i)
 		}
 	}
 
@@ -162,15 +136,15 @@ func (p *Plugin) GenerateSecret() (*corev1.Secret, error) {
 			return nil, err
 		}
 
-		kv := make(map[string]string)
-		err = json.Unmarshal([]byte(r), &kv)
+		kv := make(map[string][]byte)
+		err = json.Unmarshal(r, &kv)
 
 		if err != nil {
 			return nil, err
 		}
 
 		for k, v := range kv {
-			s.Data[k] = []byte(v)
+			s.Data[k] = v
 		}
 	}
 
@@ -180,26 +154,26 @@ func (p *Plugin) GenerateSecret() (*corev1.Secret, error) {
 		}
 
 		if d.ValueFrom != nil {
-			r, err := p.GetSecretsManagerSecret(d.ValueFrom.SecretsManagerKeyRef)
+			r, err := p.GetSecretsManagerSecret(d.ValueFrom.SecretsManagerRef)
 
 			if err != nil {
 				return nil, err
 			}
 
-			if d.ValueFrom.SecretsManagerKeyRef.Key == nil {
-				s.Data[*d.Key] = []byte(r)
+			if d.ValueFrom.Key == nil {
+				s.Data[*d.Key] = r
 			} else {
-				kv := make(map[string]string)
-				err = json.Unmarshal([]byte(r), &kv)
+				kv := make(map[string][]byte)
+				err = json.Unmarshal(r, &kv)
 
 				if err != nil {
 					return nil, err
 				}
 
-				if v, ok := kv[*d.ValueFrom.SecretsManagerKeyRef.Key]; ok {
-					s.Data[*d.Key] = []byte(v)
+				if v, ok := kv[*d.ValueFrom.Key]; ok {
+					s.Data[*d.Key] = v
 				} else {
-					return nil, fmt.Errorf("Missing key %v in secret %v", *d.ValueFrom.SecretsManagerKeyRef.Key, *d.ValueFrom.GetName())
+					return nil, fmt.Errorf("invalid secret: missing key `%v` in secret `%v`", *d.ValueFrom.Key, *d.ValueFrom.Name)
 				}
 			}
 		}
@@ -224,9 +198,9 @@ func (p *Plugin) GetSecretsManagerSvc(r *string) (*secretsmanager.SecretsManager
 	return svc, nil
 }
 
-func (p *Plugin) GetSecretsManagerSecret(s AWSSecretRef) (string, error) {
-	n := s.GetName()
-	r := s.GetRegion()
+func (p *Plugin) GetSecretsManagerSecret(s SecretsManagerRef) ([]byte, error) {
+	n := s.Name
+	r := s.Region
 
 	if r == nil {
 		r = p.Spec.SecretsManagerConfig.Region
@@ -245,7 +219,7 @@ func (p *Plugin) GetSecretsManagerSecret(s AWSSecretRef) (string, error) {
 	svc, err := p.GetSecretsManagerSvc(r)
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
 	res, err := svc.GetSecretValue(&secretsmanager.GetSecretValueInput{
@@ -253,17 +227,27 @@ func (p *Plugin) GetSecretsManagerSecret(s AWSSecretRef) (string, error) {
 	})
 
 	if err != nil {
-		return "", err
+		return nil, err
 	}
 
-	p.cache[ck] = *res.SecretString
+	if res.SecretString != nil {
+		p.cache[ck] = []byte(*res.SecretString)
+	} else if res.SecretBinary != nil {
+		p.cache[ck] = res.SecretBinary
+	} else {
+		return nil, fmt.Errorf("invalid secret: no string or binary found, make sure the content of secret `%v` is not empty", n)
+	}
 
 	return p.cache[ck], nil
 }
 
 func (s *Secret) Validate() error {
 	if s.Value != nil && s.ValueFrom != nil {
-		return fmt.Errorf("you may only specify one of `value` or `valueFrom`")
+		return fmt.Errorf("only one of `value` or `valueFrom` is permitted")
+	}
+
+	if s.Value == nil && s.ValueFrom == nil {
+		return fmt.Errorf("one of `value` or `valueFrom` is required")
 	}
 
 	if s.ValueFrom != nil {
@@ -281,22 +265,7 @@ func (s *SecretSource) Validate() error {
 		cv := v.Field(i)
 
 		if i > 0 && !cv.IsNil() {
-			return fmt.Errorf("you may only specify one of `secretsManagerKeyRef` or `runtimeConfiguratorKeyRef`")
-		}
-	}
-
-	return nil
-}
-
-func (s *SecretFromSource) Validate() error {
-	v := reflect.ValueOf(*s)
-	n := v.NumField()
-
-	for i := 0; i < n; i++ {
-		cv := v.Field(i)
-
-		if i > 0 && !cv.IsNil() {
-			return fmt.Errorf("you may only specify one of `secretsManagerRef` or `runtimeConfiguratorRef`")
+			return fmt.Errorf("only one of the supported secret provider is permitted")
 		}
 	}
 
