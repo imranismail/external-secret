@@ -151,7 +151,9 @@ func (p *Plugin) GenerateSecret() (*corev1.Secret, error) {
 	for _, d := range p.Spec.Data {
 		if d.Value != nil {
 			s.Data[*d.Key] = []byte(*d.Value)
-		} else if d.ValueFrom != nil {
+		}
+
+		if d.ValueFrom != nil {
 			r, err := p.GetSecretsManagerSecret(d.ValueFrom.SecretsManagerRef)
 
 			if err != nil {
@@ -174,8 +176,6 @@ func (p *Plugin) GenerateSecret() (*corev1.Secret, error) {
 					return nil, fmt.Errorf("invalid secret: missing key `%v` in secret `%v`", *d.ValueFrom.Key, *d.ValueFrom.Name)
 				}
 			}
-		} else {
-			return nil, fmt.Errorf("invalid input: one of `value` or `valueFrom` is required")
 		}
 	}
 
