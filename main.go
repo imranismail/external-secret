@@ -174,6 +174,8 @@ func (p *Plugin) GenerateSecret() (*corev1.Secret, error) {
 					return nil, fmt.Errorf("invalid secret: missing key `%v` in secret `%v`", *d.ValueFrom.Key, *d.ValueFrom.Name)
 				}
 			}
+		} else {
+			return nil, fmt.Errorf("invalid input: one of `value` or `valueFrom` is required")
 		}
 	}
 
