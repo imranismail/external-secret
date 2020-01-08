@@ -136,7 +136,7 @@ func (p *Plugin) GenerateSecret() (*corev1.Secret, error) {
 			return nil, err
 		}
 
-		kv := make(map[string][]byte)
+		kv := make(map[string]string)
 		err = json.Unmarshal(r, &kv)
 
 		if err != nil {
@@ -144,7 +144,7 @@ func (p *Plugin) GenerateSecret() (*corev1.Secret, error) {
 		}
 
 		for k, v := range kv {
-			s.Data[k] = v
+			s.Data[k] = []byte(v)
 		}
 	}
 
@@ -163,7 +163,7 @@ func (p *Plugin) GenerateSecret() (*corev1.Secret, error) {
 			if d.ValueFrom.Key == nil {
 				s.Data[*d.Key] = r
 			} else {
-				kv := make(map[string][]byte)
+				kv := make(map[string]string)
 				err = json.Unmarshal(r, &kv)
 
 				if err != nil {
@@ -171,7 +171,7 @@ func (p *Plugin) GenerateSecret() (*corev1.Secret, error) {
 				}
 
 				if v, ok := kv[*d.ValueFrom.Key]; ok {
-					s.Data[*d.Key] = v
+					s.Data[*d.Key] = []byte(v)
 				} else {
 					return nil, fmt.Errorf("invalid secret: missing key `%v` in secret `%v`", *d.ValueFrom.Key, *d.ValueFrom.Name)
 				}
