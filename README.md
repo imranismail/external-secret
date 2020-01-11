@@ -43,7 +43,7 @@ spec:
     value: "some-custom-hostname"
   - key: "DB_PASSWORD"
     valueFrom:
-      secretsManagerKeyRef:
+      secretsManagerRef:
         name: "myapp/production"
         # look up key in secret
         key: "db-password"
@@ -52,7 +52,7 @@ spec:
   # take the whole secret as a file
   - key: "secret.json"
     valueFrom:
-      secretsManagerKeyRef:
+      secretsManagerRef:
         name: "myapp/production"
         # omit key to take the whole secret as a file
         # key: "db-password"
