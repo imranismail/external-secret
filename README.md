@@ -1,3 +1,13 @@
+## Install
+
+Place executable in $XDG_CONFIG_HOME/kustomize/plugin/imranismail.dev/v1/externalsecret/ExternalSecret
+
+```
+chmod +x $XDG_CONFIG_HOME/kustomize/plugin/imranismail.dev/v1/externalsecret/ExternalSecret
+```
+
+The default value of XDG_CONFIG_HOME is $HOME/.config.
+
 ## TLDR
 
 A kustomize exec plugin to generate secret from remote stores. Currently supports AWS SecretsManager
