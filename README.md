@@ -1,9 +1,12 @@
-## Install
-
-Place executable in $XDG_CONFIG_HOME/kustomize/plugin/imranismail.dev/v1/externalsecret/ExternalSecret
+## Quick Install
 
 ```
-chmod +x $XDG_CONFIG_HOME/kustomize/plugin/imranismail.dev/v1/externalsecret/ExternalSecret
+export TARGET_PLATFORM=Linux_x86_64
+mkdir -p ~/.config/kustomize/plugin/imranismail.dev/v1/externalsecret
+cd ~/.config/kustomize/plugin/imranismail.dev/v1/externalsecret
+curl -L https://github.com/imranismail/external-secret/releases/download/v0.2.1/external-secret_0.2.1_$TARGET_PLATFORM.tar.gz | tar xz
+mv external-secret ExternalSecret
+chmod +x ExternalSecret
 ```
 
 The default value of XDG_CONFIG_HOME is $HOME/.config.
