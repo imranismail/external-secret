@@ -19,9 +19,11 @@ import (
 )
 
 type Spec struct {
-	SecretsManagerConfig `json:"secretsManagerConfig,omitempty" yaml:"secretsManagerConfig,omitempty"`
-	Data                 []Secret       `json:"data,omitempty" yaml:"data,omitempty"`
-	DataFrom             []SecretSource `json:"dataFrom,omitempty" yaml:"dataFrom,omitempty"`
+	SecretsManagerConfig  `json:"secretsManagerConfig,omitempty" yaml:"secretsManagerConfig,omitempty"`
+	Data                  []Secret       `json:"data,omitempty" yaml:"data,omitempty"`
+	DataFrom              []SecretSource `json:"dataFrom,omitempty" yaml:"dataFrom,omitempty"`
+	Behavior              string         `json:"behavior,omitempty" yaml:"behavior,omitempty"`
+	DisableNameSuffixHash bool           `json:"disableNameSuffixHash,omitempty" yaml:"disableNameSuffixHash,omitempty"`
 }
 
 type SecretsManagerConfig struct {
@@ -46,18 +48,16 @@ type SecretsManagerRef struct {
 
 type Plugin struct {
 	metav1.TypeMeta
-	metav1.ObjectMeta     `json:"metadata,omitempty" yaml:"metadata,omitempty"`
-	Type                  corev1.SecretType `json:"type,omitempty" yaml:"type,omitempty"`
-	Behavior              string            `json:"behavior,omitempty" yaml:"behavior,omitempty"`
-	DisableNameSuffixHash bool              `json:"disableNameSuffixHash,omitempty" yaml:"disableNameSuffixHash,omitempty"`
-	Spec                  Spec              `json:"spec,omitempty" yaml:"spec,omitempty"`
-	cache                 map[string][]byte
+	metav1.ObjectMeta `json:"metadata,omitempty" yaml:"metadata,omitempty"`
+	Type              corev1.SecretType `json:"type,omitempty" yaml:"type,omitempty"`
+	Spec              Spec              `json:"spec,omitempty" yaml:"spec,omitempty"`
+	cache             map[string][]byte
 }
 
 func NewPlugin() Plugin {
 	p := Plugin{}
-	p.DisableNameSuffixHash = false
-	p.Behavior = "create"
+	p.Spec.DisableNameSuffixHash = false
+	p.Spec.Behavior = "create"
 	p.Type = "Opaque"
 	p.cache = make(map[string][]byte)
 
@@ -115,8 +115,8 @@ func (p *Plugin) GenerateSecret() (*corev1.Secret, error) {
 
 	a := make(map[string]string)
 	d := map[string]string{
-		"kustomize.config.k8s.io/needs-hash": strconv.FormatBool(!p.DisableNameSuffixHash),
-		"kustomize.config.k8s.io/behavior":   p.Behavior,
+		"kustomize.config.k8s.io/needs-hash": strconv.FormatBool(!p.Spec.DisableNameSuffixHash),
+		"kustomize.config.k8s.io/behavior":   p.Spec.Behavior,
 	}
 
 	for k, v := range p.GetAnnotations() {

@@ -10,12 +10,8 @@ import (
 )
 
 func Test(t *testing.T) {
-	tc := kusttest_test.NewPluginTestEnv(t).Set()
-	defer tc.Reset()
-
-	tc.BuildExecPlugin("imranismail.dev", "v1", "ExternalSecret")
-
-	th := kusttest_test.NewKustTestHarnessAllowPlugins(t, "/app")
+	th := kusttest_test.MakeEnhancedHarness(t)
+	defer th.Reset()
 
 	m := th.LoadAndRunGenerator(`
 apiVersion: imranismail.dev/v1
@@ -48,8 +44,8 @@ apiVersion: v1
 data:
 kind: Secret
 metadata:
-	creationTimestamp: null
-	name: my-secret
+  creationTimestamp: null
+  name: my-secret
 type: Opaque
 `)
 }
