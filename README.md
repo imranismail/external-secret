@@ -1,17 +1,17 @@
 ## Quick Install
 
-```
+```sh
 export TARGET_PLATFORM=Linux_x86_64
 mkdir -p ~/.config/kustomize/plugin/imranismail.dev/v1/externalsecret
 cd ~/.config/kustomize/plugin/imranismail.dev/v1/externalsecret
-curl -L https://github.com/imranismail/external-secret/releases/download/v0.2.1/external-secret_0.2.1_$TARGET_PLATFORM.tar.gz | tar xz
+curl -L https://github.com/imranismail/external-secret/releases/download/v2.0.0/external-secret_2.0.0_$TARGET_PLATFORM.tar.gz | tar xz
 mv external-secret ExternalSecret
 chmod +x ExternalSecret
 ```
 
-The default value of XDG_CONFIG_HOME is $HOME/.config.
+The default value of XDG_CONFIG_HOME is \$HOME/.config.
 
-## TLDR
+## Usage
 
 A kustomize exec plugin to generate secret from remote stores. Currently supports AWS SecretsManager
 
@@ -23,16 +23,15 @@ Given that you have this kustomization:
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 generators:
-- secret.yaml
+  # make sure it is referenced in the .generators list
+  - external-secret.yaml
 ```
 
-**secret.yaml**
+**external-secret.yaml**
+
 ```yaml
 apiVersion: imranismail.dev/v1
 kind: ExternalSecret
-# generator options
-behavior: create
-disableNameSuffixHash: false
 type: Opaque
 metadata:
   name: my-secret
@@ -41,34 +40,38 @@ metadata:
   labels:
     whatever: "whatever"
 spec:
-  # set aws config to be used to fetch each data
+  # generator options
+  behavior: create
+  disableNameSuffixHash: false
+  # aws secrets manager config
   secretsManagerConfig:
     region: "ap-southeast-1"
   dataFrom:
-  - secretsManagerRef:
-      name: "myapp/production"
-  - secretsManagerRef:
-      name: "myapp/production"
-      # override .secretsManagerConfig.region
-      region: "ap-northeast-1"
-  data:
-  - key: "DB_HOSTNAME"
-    value: "some-custom-hostname"
-  - key: "DB_PASSWORD"
-    valueFrom:
-      secretsManagerRef:
+    - secretsManagerRef:
         name: "myapp/production"
-        # look up key in secret
-        key: "db-password"
-        # override .secretsManagerConfig.region
+    - secretsManagerRef:
+        name: "myapp/production"
+        # override .spec.secretsManagerConfig.region
         region: "ap-northeast-1"
-  # take the whole secret as a file
-  - key: "secret.json"
-    valueFrom:
-      secretsManagerRef:
-        name: "myapp/production"
-        # omit key to take the whole secret as a file
-        # key: "db-password"
+  data:
+    # inline values
+    - key: "DB_HOSTNAME"
+      value: "some-custom-hostname"
+    - key: "DB_PASSWORD"
+      valueFrom:
+        secretsManagerRef:
+          name: "myapp/production"
+          # look up key in secret
+          key: "db-password"
+          # override .secretsManagerConfig.region
+          region: "ap-northeast-1"
+    # take the whole secret as a file
+    - key: "secret.json"
+      valueFrom:
+        secretsManagerRef:
+          name: "myapp/production"
+          # omit key to take the whole secret as a file
+          # key: "db-password"
 ```
 
 It outputs this:
@@ -85,7 +88,7 @@ metadata:
 type: Opaque
 data:
   # key and base64 encoded values from remote datastores
-  {{key}}: {{val}}
+  { { key } }: { { val } }
 ```
 
 ## Override Logic
@@ -94,4 +97,4 @@ Currently `data` always overrides `dataFrom`. This works similar to Kubernetes C
 
 ## AWS Credentials
 
-This tool relies on the default behavior of the AWS SDK for Go to determine AWS credentials and region.
+This tool relies on the default behavior of the AWS SDK V2 for Go to determine AWS credentials and region.
