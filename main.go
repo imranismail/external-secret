@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -9,9 +10,8 @@ import (
 	"reflect"
 	"strconv"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/secretsmanager"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/secretsmanager"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -182,20 +182,14 @@ func (p *Plugin) GenerateSecret() (*corev1.Secret, error) {
 	return &s, nil
 }
 
-func (p *Plugin) GetSecretsManagerSvc(r *string) (*secretsmanager.SecretsManager, error) {
-	sess, err := session.NewSession(
-		&aws.Config{
-			Region: r,
-		},
-	)
+func (p *Plugin) NewSecretsManagerSvc(r *string) (*secretsmanager.Client, error) {
+	cfg, err := config.LoadDefaultConfig(config.WithRegion(*r))
 
 	if err != nil {
 		return nil, err
 	}
 
-	svc := secretsmanager.New(sess)
-
-	return svc, nil
+	return secretsmanager.NewFromConfig(cfg), nil
 }
 
 func (p *Plugin) GetSecretsManagerSecret(s SecretsManagerRef) ([]byte, error) {
@@ -216,15 +210,18 @@ func (p *Plugin) GetSecretsManagerSecret(s SecretsManagerRef) ([]byte, error) {
 		return val, nil
 	}
 
-	svc, err := p.GetSecretsManagerSvc(r)
+	svc, err := p.NewSecretsManagerSvc(r)
 
 	if err != nil {
 		return nil, err
 	}
 
-	res, err := svc.GetSecretValue(&secretsmanager.GetSecretValueInput{
-		SecretId: n,
-	})
+	res, err := svc.GetSecretValue(
+		context.Background(),
+		&secretsmanager.GetSecretValueInput{
+			SecretId: n,
+		},
+	)
 
 	if err != nil {
 		return nil, err
