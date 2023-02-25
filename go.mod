@@ -7,7 +7,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/service/secretsmanager v0.28.0
 	github.com/go-logr/logr v0.2.1 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
-	golang.org/x/net v0.0.0-20201026091529-146b70c837a4 // indirect
+	golang.org/x/net v0.7.0 // indirect
 	k8s.io/api v0.19.3
 	k8s.io/apimachinery v0.19.3
 	k8s.io/client-go v0.19.3 // indirect
